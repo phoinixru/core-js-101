@@ -20,8 +20,14 @@
  *    console.log(r.height);      // => 20
  *    console.log(r.getArea());   // => 200
  */
-function Rectangle(/* width, height */) {
-  throw new Error('Not implemented');
+function Rectangle(width, height) {
+  return {
+    width,
+    height,
+    getArea() {
+      return this.width * this.height;
+    },
+  };
 }
 
 
@@ -35,8 +41,8 @@ function Rectangle(/* width, height */) {
  *    [1,2,3]   =>  '[1,2,3]'
  *    { width: 10, height : 20 } => '{"height":10,"width":20}'
  */
-function getJSON(/* obj */) {
-  throw new Error('Not implemented');
+function getJSON(obj) {
+  return JSON.stringify(obj);
 }
 
 
@@ -51,8 +57,11 @@ function getJSON(/* obj */) {
  *    const r = fromJSON(Circle.prototype, '{"radius":10}');
  *
  */
-function fromJSON(/* proto, json */) {
-  throw new Error('Not implemented');
+function fromJSON(proto, json) {
+  return Object.assign(
+    Object.create(proto),
+    JSON.parse(json),
+  );
 }
 
 
@@ -110,33 +119,112 @@ function fromJSON(/* proto, json */) {
  *  For more examples see unit tests.
  */
 
+class Selector {
+  constructor(type, value, parent = null) {
+    this.type = type;
+    this.value = value;
+    this.parent = parent;
+
+    if (!parent) {
+      return;
+    }
+
+    if (['element', 'id', 'pseudoElement'].includes(type) && parent.have([type])) {
+      throw Error('Element, id and pseudo-element should not occur more then one time inside the selector');
+    }
+
+    const order = Object.keys(this.templates);
+    const typeIdx = order.indexOf(type);
+    const lowerTypes = order.slice(typeIdx + 1);
+
+    if (parent.have(lowerTypes)) {
+      throw Error('Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element');
+    }
+  }
+
+  stringify() {
+    const template = this.templates[this.type];
+
+    const selector = [
+      this.parent ? this.parent.stringify() : null,
+      template.replace('%value%', this.value),
+    ]
+      .filter((e) => e)
+      .join``;
+
+    return selector;
+  }
+
+  element(value) {
+    return new Selector('element', value, this);
+  }
+
+  id(value) {
+    return new Selector('id', value, this);
+  }
+
+  class(value) {
+    return new Selector('class', value, this);
+  }
+
+  attr(value) {
+    return new Selector('attr', value, this);
+  }
+
+  pseudoClass(value) {
+    return new Selector('pseudoClass', value, this);
+  }
+
+  pseudoElement(value) {
+    return new Selector('pseudoElement', value, this);
+  }
+
+  have(types) {
+    return types.includes(this.type) || (this.parent && this.parent.have(types));
+  }
+}
+
+Selector.prototype.templates = {
+  element: '%value%',
+  id: '#%value%',
+  class: '.%value%',
+  attr: '[%value%]',
+  pseudoClass: ':%value%',
+  pseudoElement: '::%value%',
+};
+
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+
+  element(value) {
+    return new Selector('element', value);
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    return new Selector('id', value);
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  class(value) {
+    return new Selector('class', value);
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  attr(value) {
+    return new Selector('attr', value);
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  pseudoClass(value) {
+    return new Selector('pseudoClass', value);
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  pseudoElement(value) {
+    return new Selector('pseudoElement', value);
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  combine(selector1, combinator, selector2) {
+    return {
+      stringify() {
+        return [selector1.stringify(), combinator, selector2.stringify()].join` `;
+      },
+    };
   },
 };
 
